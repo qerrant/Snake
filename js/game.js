@@ -175,8 +175,6 @@ function drawBackground(context) {
 }
 
 function tick(context) {
-  //if (intervalId === -1) return;
-  
   if (Snake.checkCollision(Apple)) {    
     Apple.spawn(Snake.positions[0]);
     
