@@ -5,10 +5,10 @@ const horizontalQuads = 20; // horizontal quad num
 const quadSize = 30; // quad size in px
 const borderQuad = 2; // border size in px
 const snakeLength = 3; // snake length in quads
-const Speed = 10; // quads per second
+const timePerFrame = 100;
 
 
-let intervalId = -1;
+let pauseGame = false;
 let applesDiv;
 
 const Direction = {
@@ -47,6 +47,7 @@ const Snake = {
   positions: [],
   direction: Direction.Right,
   apples: 0,
+  lastUpdate: Date.now(),
   init: function(length) {
     for (let i = 0; i < length; i++) {  
       this.positions[i] = {
@@ -59,7 +60,7 @@ const Snake = {
     this.direction = Direction.Right;
   },
   draw: function(context) {
-    for (let i = 0; i < snakeLength; i++) {      
+    for (let i = 0; i < this.positions.length; i++) {      
       const startX = this.positions[i].x * quadSize + borderQuad;
       const startY = this.positions[i].y * quadSize + borderQuad;
       const endX = quadSize - 2 * borderQuad;
@@ -69,32 +70,33 @@ const Snake = {
       context.fillRect(startX, startY, endX, endY);       
     }
   },
-  update: function() {
-    let lastPos = {...this.positions[0]};
-
-    switch (this.direction) {
-      case Direction.Right:
-        this.positions[0].x++;
-        if (this.positions[0].x >= horizontalQuads) this.positions[0].x = 0;
-        break; 
-      case Direction.Left:
-        this.positions[0].x--;
-        if (this.positions[0].x < 0) this.positions[0].x = horizontalQuads - 1;
-        break;
-      case Direction.Up:
-        this.positions[0].y--;
-        if (this.positions[0].y < 0) this.positions[0].y = verticalQuads - 1;
-        break;
-      case Direction.Down:
-        this.positions[0].y++;
-        if (this.positions[0].y >= verticalQuads) this.positions[0].y = 0;
-        break;
-    } 
-    
-    for (let i = 1; i < this.positions.length; i++) {
-      const tmp = {...this.positions[i]};
-      this.positions[i] = {...lastPos};
-      lastPos = {...tmp};
+  update: function() {    
+    if(Date.now() - this.lastUpdate >= timePerFrame) {
+      let newHead = {...this.positions[0]};
+      
+      switch (this.direction) {
+        case Direction.Right:
+          newHead.x = this.positions[0].x + 1;
+          if (newHead.x >= horizontalQuads) newHead.x = 0;
+          break; 
+        case Direction.Left:
+          newHead.x = this.positions[0].x - 1;
+          if (newHead.x < 0) newHead.x = horizontalQuads - 1;
+          break;
+        case Direction.Up:
+          newHead.y = this.positions[0].y - 1;
+          if (newHead.y < 0) newHead.y = verticalQuads - 1;
+          break;
+        case Direction.Down:
+          newHead.y = this.positions[0].y + 1;
+          if (newHead.y >= verticalQuads) newHead.y = 0;
+          break;        
+      } 
+      
+      this.positions.unshift(newHead);
+      this.positions.pop();
+      
+      this.lastUpdate = Date.now();
     }
   },
   setDirection(direction) {
@@ -141,11 +143,13 @@ function createGame() {
 }
 
 function initGame(context) {  
+  pauseGame = false;
+
   Snake.init(snakeLength);
 
   Apple.spawn(Snake.positions[0]);
-      
-  intervalId = setInterval(tick.bind(this, context), 1000 / Speed);
+ 
+  window.requestAnimationFrame(tick.bind(this, context));
 }
 
 function drawBackground(context) {
@@ -167,8 +171,6 @@ function drawBackground(context) {
 }
 
 function tick(context) {
-  if (intervalId === -1) return;
-  
   if (Snake.checkCollision(Apple)) {    
     Apple.spawn(Snake.positions[0]);
     
@@ -185,16 +187,19 @@ function tick(context) {
   
   drawBackground(context);
 
-  Snake.draw(context)
   Snake.update();
+  Snake.draw(context)
   
   Apple.draw(context);
+  
+  if (!pauseGame) {
+    window.requestAnimationFrame(tick.bind(this, context));
+  }
 }
 
 function win() {
-  clearInterval(intervalId);
-  intervalId = -1;
-  
+  pauseGame = true;
+
   let winDiv = document.getElementById("win");
   
   if (winDiv) {
